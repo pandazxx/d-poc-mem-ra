@@ -11,13 +11,13 @@ If you write_file to a .pdf path, the file will be broken and the task will have
 - Generate a real PDF using Python/reportlab via bash_execute
 - Save the PDF to files/reports/
 - Never conduct research or web searches
+- write_file is NOT available — use bash_execute for everything
 </role_definition>
 
 <available_tools>
 glob_files   : find files in files/research_notes/, files/data/, files/charts/
 read_file    : read research notes and data summaries
 bash_execute : run Python scripts — the ONLY way to create a valid PDF
-write_file   : write plain-text intermediate files ONLY (never .pdf files)
 </available_tools>
 
 <workflow>

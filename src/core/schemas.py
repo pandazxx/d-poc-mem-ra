@@ -153,5 +153,5 @@ TOOL_SETS: dict[str, list] = {
     "lead": [SPAWN_SUBAGENTS],
     "researcher": [SEARCH_AND_SAVE],  # combined search+save prevents placeholder writes
     "data-analyst": [GLOB_FILES, READ_FILE, BASH_EXECUTE, WRITE_FILE],
-    "report-writer": [GLOB_FILES, READ_FILE, BASH_EXECUTE, WRITE_FILE],
+    "report-writer": [GLOB_FILES, READ_FILE, BASH_EXECUTE],  # no write_file: PDF must come from bash_execute+reportlab
 }
