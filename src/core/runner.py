@@ -24,8 +24,7 @@ DEFAULT_MODEL = os.environ.get(
     "meta/llama-3.3-70b-instruct",
 )
 
-_RETRY_MAX = 6        # max retry attempts on 429
-_RETRY_BASE = 2.0     # initial backoff seconds (doubles each attempt, capped at 60s)
+_RETRY_BASE = 2.0     # initial backoff seconds (doubles each attempt, capped at 300s)
 
 
 class AgentRunner:
@@ -96,9 +95,10 @@ class AgentRunner:
             self.messages.extend(tool_results)
 
     async def _call_llm(self):
-        """Call the LLM API with exponential backoff retry on 429."""
+        """Call the LLM API, retrying indefinitely on 429 with exponential backoff."""
         delay = _RETRY_BASE
-        for attempt in range(_RETRY_MAX):
+        attempt = 0
+        while True:
             try:
                 return await self.client.chat.completions.create(
                     model=self.model,
@@ -116,16 +116,15 @@ class AgentRunner:
                     "then set  NVIDIA_MODEL=<id>  in your .env file."
                 ) from None
             except openai.RateLimitError:
-                if attempt == _RETRY_MAX - 1:
-                    raise
-                # Add jitter to spread retries from concurrent subagents.
+                attempt += 1
+                # Jitter spreads retries across concurrent subagents.
                 wait = delay + random.uniform(0, delay * 0.5)
                 logger.warning(
-                    "[%s] 429 rate-limited (attempt %d/%d) — retrying in %.1fs",
-                    self.agent_type, attempt + 1, _RETRY_MAX, wait,
+                    "[%s] 429 rate-limited (attempt %d) — retrying in %.1fs",
+                    self.agent_type, attempt, wait,
                 )
                 print(
-                    f"\n[{self.agent_type}] Rate limited, retrying in {wait:.0f}s…",
+                    f"\n[{self.agent_type}] Rate limited (attempt {attempt}), retrying in {wait:.0f}s…",
                     flush=True,
                 )
                 await asyncio.sleep(wait)
