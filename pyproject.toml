@@ -1,0 +1,23 @@
+[project]
+name = "nvidia-research-agent"
+version = "0.1.0"
+description = "Multi-agent research system using NVIDIA NIM LLM APIs"
+requires-python = ">=3.10"
+dependencies = [
+    "openai>=1.0.0",
+    "duckduckgo-search>=6.0.0",
+    "python-dotenv>=1.0.0",
+    "reportlab>=4.0.0",
+    "matplotlib>=3.8.0",
+]
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+[project.scripts]
+research-agent = "src.main:main"

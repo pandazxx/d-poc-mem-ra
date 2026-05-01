@@ -1,4 +1,16 @@
 {
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:docs.api.nvidia.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:api.github.com)",
+      "WebSearch",
+      "WebFetch(domain:docs.nvidia.com)",
+      "WebFetch(domain:docs.litellm.ai)",
+      "WebFetch(domain:forums.developer.nvidia.com)",
+      "WebFetch(domain:build.nvidia.com)"
+    ]
+  },
   "sandbox": {
     "enabled": true,
     "autoAllowBashIfSandboxed": true
