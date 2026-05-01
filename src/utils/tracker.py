@@ -53,7 +53,17 @@ class SubagentTracker:
             "event": "tool_call",
             "agent": label,
             "tool": tool_name,
-            "args_summary": _summarise(args),
+            "args": {k: (v if len(str(v)) <= 500 else str(v)[:500] + "…") for k, v in args.items()},
+        })
+
+    def record_tool_result(self, agent_type: str, tool_name: str, result: str) -> None:
+        label = self.current_label(agent_type)
+        self._jsonl({
+            "event": "tool_result",
+            "agent": label,
+            "tool": tool_name,
+            "result_chars": len(result),
+            "result_preview": result[:300] + ("…" if len(result) > 300 else ""),
         })
 
     def close(self) -> None:

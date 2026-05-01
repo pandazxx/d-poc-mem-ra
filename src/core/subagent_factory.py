@@ -15,6 +15,8 @@ def load_prompt(filename: str) -> str:
 def make_agent_factory(
     on_spawn: Optional[Callable] = None,
     on_tool_call: Optional[Callable] = None,
+    on_tool_result: Optional[Callable] = None,
+    on_agent_text: Optional[Callable] = None,
     model: str = DEFAULT_MODEL,
 ) -> Callable[[str], AgentRunner]:
     """Return a callable that produces an AgentRunner for the given subagent type."""
@@ -34,6 +36,8 @@ def make_agent_factory(
             agent_factory=factory,
             on_spawn=on_spawn,
             on_tool_call=on_tool_call,
+            on_tool_result=on_tool_result,
+            on_agent_text=on_agent_text,
         )
 
     return factory

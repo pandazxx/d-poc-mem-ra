@@ -2,6 +2,7 @@
 
 import asyncio
 import os
+import textwrap
 
 from dotenv import load_dotenv
 
@@ -9,6 +10,35 @@ from .core.runner import AgentRunner, DEFAULT_MODEL, NVIDIA_BASE_URL
 from .core.subagent_factory import load_prompt, make_agent_factory
 from .utils.tracker import SubagentTracker
 from .utils.transcript import TranscriptWriter, setup_session
+
+# Max chars to show inline for tool results and prompts in the transcript.
+_RESULT_PREVIEW = 300
+_PROMPT_PREVIEW = 400
+
+
+def _wrap(text: str, indent: str = "    ") -> str:
+    """Wrap long text for readable transcript display."""
+    return textwrap.fill(text, width=100, initial_indent=indent, subsequent_indent=indent)
+
+
+def _truncate(text: str, limit: int) -> str:
+    if len(text) <= limit:
+        return text
+    return text[:limit] + f"… [{len(text) - limit} more chars]"
+
+
+def _fmt_args(tool_name: str, args: dict) -> str:
+    """Format tool arguments as compact key=value lines."""
+    lines = []
+    for k, v in args.items():
+        v_str = str(v)
+        if tool_name == "spawn_subagents" and k == "subagents":
+            # Handled separately in on_spawn
+            continue
+        if len(v_str) > 120:
+            v_str = v_str[:120] + "…"
+        lines.append(f"    {k}: {v_str}")
+    return "\n".join(lines)
 
 
 def main() -> None:
@@ -27,16 +57,50 @@ async def _chat() -> None:
     transcript = TranscriptWriter(transcript_file)
     tracker = SubagentTracker(transcript_writer=transcript, session_dir=session_dir)
 
-    def on_spawn(subagent_type: str, description: str) -> None:
+    # ── callbacks ──────────────────────────────────────────────────────────────
+
+    def on_agent_text(agent_type: str, text: str) -> None:
+        """Agent produced reasoning/planning text between tool calls."""
+        label = tracker.current_label(agent_type)
+        snippet = _truncate(text.strip(), _RESULT_PREVIEW)
+        transcript.write(f"\n[{label}] says: {snippet}")
+
+    def on_spawn(subagent_type: str, description: str, prompt: str) -> None:
+        """Lead agent is about to spawn a subagent."""
         subagent_id = tracker.register_spawn(subagent_type, description)
-        transcript.write(f"\n[Spawning {subagent_id}: {description}]")
+        prompt_preview = _truncate(prompt.strip(), _PROMPT_PREVIEW)
+        transcript.write(
+            f"\n\n{'─'*60}"
+            f"\n[Spawning {subagent_id}]  {description}"
+            f"\n  type   : {subagent_type}"
+            f"\n  prompt : {prompt_preview}"
+            f"\n{'─'*60}"
+        )
 
     def on_tool_call(agent_type: str, tool_name: str, args: dict) -> None:
+        """Agent is about to call a tool."""
         tracker.record_tool_call(agent_type, tool_name, args)
         label = tracker.current_label(agent_type)
-        transcript.write(f"\n[{label}] -> {tool_name}")
+        arg_lines = _fmt_args(tool_name, args)
+        header = f"\n[{label}] -> {tool_name}"
+        transcript.write(header + (f"\n{arg_lines}" if arg_lines else ""))
 
-    factory = make_agent_factory(on_spawn=on_spawn, on_tool_call=on_tool_call)
+    def on_tool_result(agent_type: str, tool_name: str, args: dict, result: str) -> None:
+        """Tool finished — log the result."""
+        label = tracker.current_label(agent_type)
+        preview = _truncate(result.strip(), _RESULT_PREVIEW)
+        # Write result to transcript file only (keeps console less noisy).
+        transcript.write_to_file(f"\n    => {preview}\n")
+        tracker.record_tool_result(agent_type, tool_name, result)
+
+    # ── agent setup ────────────────────────────────────────────────────────────
+
+    factory = make_agent_factory(
+        on_spawn=on_spawn,
+        on_tool_call=on_tool_call,
+        on_tool_result=on_tool_result,
+        on_agent_text=on_agent_text,
+    )
     lead_runner = AgentRunner(
         system_prompt=load_prompt("lead_agent.txt"),
         agent_type="lead",
@@ -44,11 +108,15 @@ async def _chat() -> None:
         agent_factory=factory,
         on_spawn=on_spawn,
         on_tool_call=on_tool_call,
+        on_tool_result=on_tool_result,
+        on_agent_text=on_agent_text,
     )
 
-    print("\n" + "=" * 50)
+    # ── banner ─────────────────────────────────────────────────────────────────
+
+    print("\n" + "=" * 60)
     print("  NVIDIA NIM Research Agent")
-    print("=" * 50)
+    print("=" * 60)
     print(f"\nModel : {DEFAULT_MODEL}")
     print(f"API   : {NVIDIA_BASE_URL}")
     print("\nTo change the model set NVIDIA_MODEL=<id> in .env")
@@ -56,6 +124,8 @@ async def _chat() -> None:
     print("\nResearch any topic and get a comprehensive PDF")
     print("report with data visualizations.")
     print("\nType 'exit' to quit.\n")
+
+    # ── main loop ──────────────────────────────────────────────────────────────
 
     try:
         while True:
@@ -67,7 +137,7 @@ async def _chat() -> None:
             if not user_input or user_input.lower() in {"exit", "quit", "q"}:
                 break
 
-            transcript.write_to_file(f"\nYou: {user_input}\n")
+            transcript.write(f"\n{'='*60}\nYou: {user_input}\n{'='*60}")
             transcript.write("\nAgent: ")
 
             try:
@@ -75,10 +145,7 @@ async def _chat() -> None:
             except Exception as exc:
                 result = f"[Error: {exc}]"
 
-            transcript.write(result)
-            transcript.write("\n")
-
-            # Reset conversation for the next independent research query.
+            transcript.write(f"\n{result}\n")
             lead_runner.messages = []
     finally:
         transcript.write("\n\nGoodbye!\n")

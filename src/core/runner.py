@@ -24,17 +24,18 @@ DEFAULT_MODEL = os.environ.get(
     "meta/llama-3.3-70b-instruct",
 )
 
-_RETRY_BASE = 2.0     # initial backoff seconds (doubles each attempt, capped at 300s)
+_RETRY_BASE = 2.0  # initial backoff seconds (doubles each attempt, capped at 300s)
 
 
 class AgentRunner:
     """
     Runs a single agent in an agentic loop.
 
-    - Calls the NVIDIA NIM LLM (OpenAI-compatible API).
-    - Retries with exponential backoff on 429 rate-limit responses.
-    - Executes multiple tool calls concurrently (parallel tool calls).
-    - Supports recursive subagent spawning via spawn_subagents.
+    Callbacks (all optional):
+      on_agent_text(agent_type, text)              — agent produced reasoning text
+      on_spawn(agent_type, description, prompt)    — about to spawn a subagent
+      on_tool_call(agent_type, tool_name, args)    — about to execute a tool
+      on_tool_result(agent_type, tool_name, args, result) — tool finished
     """
 
     def __init__(
@@ -43,8 +44,10 @@ class AgentRunner:
         agent_type: str,
         model: str = DEFAULT_MODEL,
         agent_factory: Optional[Callable[["str"], "AgentRunner"]] = None,
-        on_spawn: Optional[Callable[[str, str], None]] = None,
+        on_spawn: Optional[Callable[[str, str, str], None]] = None,
         on_tool_call: Optional[Callable[[str, str, dict], None]] = None,
+        on_tool_result: Optional[Callable[[str, str, dict, str], None]] = None,
+        on_agent_text: Optional[Callable[[str, str], None]] = None,
     ):
         self.system_prompt = system_prompt
         self.agent_type = agent_type
@@ -52,6 +55,8 @@ class AgentRunner:
         self.agent_factory = agent_factory
         self.on_spawn = on_spawn
         self.on_tool_call = on_tool_call
+        self.on_tool_result = on_tool_result
+        self.on_agent_text = on_agent_text
 
         self.client = AsyncOpenAI(
             base_url=NVIDIA_BASE_URL,
@@ -72,6 +77,10 @@ class AgentRunner:
 
             choice = response.choices[0]
             msg = choice.message
+
+            # Emit reasoning text whenever the model produces it (even mid-tool-call).
+            if msg.content and self.on_agent_text:
+                self.on_agent_text(self.agent_type, msg.content)
 
             assistant_dict: dict = {"role": "assistant", "content": msg.content}
             if msg.tool_calls:
@@ -117,14 +126,14 @@ class AgentRunner:
                 ) from None
             except openai.RateLimitError:
                 attempt += 1
-                # Jitter spreads retries across concurrent subagents.
                 wait = delay + random.uniform(0, delay * 0.5)
                 logger.warning(
                     "[%s] 429 rate-limited (attempt %d) — retrying in %.1fs",
                     self.agent_type, attempt, wait,
                 )
                 print(
-                    f"\n[{self.agent_type}] Rate limited (attempt {attempt}), retrying in {wait:.0f}s…",
+                    f"\n[{self.agent_type}] Rate limited (attempt {attempt}),"
+                    f" retrying in {wait:.0f}s…",
                     flush=True,
                 )
                 await asyncio.sleep(wait)
@@ -144,11 +153,15 @@ class AgentRunner:
         if self.on_tool_call:
             self.on_tool_call(self.agent_type, name, args)
 
-        content = await self._dispatch(name, args)
+        result = await self._dispatch(name, args)
+
+        if self.on_tool_result:
+            self.on_tool_result(self.agent_type, name, args, result)
+
         return {
             "role": "tool",
             "tool_call_id": tool_call.id,
-            "content": content,
+            "content": result,
         }
 
     async def _dispatch(self, name: str, args: dict) -> str:
@@ -182,7 +195,7 @@ class AgentRunner:
         if not self.agent_factory:
             return "Cannot spawn subagent: no factory configured"
         if self.on_spawn:
-            self.on_spawn(subagent_type, description)
+            self.on_spawn(subagent_type, description, prompt)
         runner: AgentRunner = self.agent_factory(subagent_type)
         result = await runner.run(prompt)
         return f"[{subagent_type} completed]\n{result}"
