@@ -11,7 +11,7 @@ import openai
 from openai import AsyncOpenAI
 
 from .schemas import TOOL_SETS
-from .tools import bash_execute, glob_files, read_file, search_and_save, web_search, write_file
+from .tools import bash_execute, glob_files, read_file, render_typst, search_and_save, web_search, write_file
 
 logger = logging.getLogger(__name__)
 
@@ -183,6 +183,8 @@ class AgentRunner:
             return await asyncio.to_thread(glob_files, args["pattern"])
         if name == "bash_execute":
             return await asyncio.to_thread(bash_execute, args["command"])
+        if name == "render_typst":
+            return await asyncio.to_thread(render_typst, args["typ_file"])
         if name == "spawn_subagents":
             specs = args.get("subagents", [])
             results = await asyncio.gather(

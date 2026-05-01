@@ -13,17 +13,9 @@ def load_prompt(filename: str) -> str:
 
 
 def _inject_files_dir(prompt: str, files_dir: str) -> str:
-    """Replace the generic 'files/<subdir>' prefixes with the session-specific path.
-
-    Also replaces the standalone 'files' argument in the generate_pdf.py command.
-    """
+    """Replace the generic 'files/<subdir>' prefixes with the session-specific path."""
     for subdir in ("research_notes", "charts", "data", "reports"):
         prompt = prompt.replace(f"files/{subdir}", f"{files_dir}/{subdir}")
-    # Replace the script argument: generate_pdf.py files → generate_pdf.py <session_dir>
-    prompt = prompt.replace(
-        "generate_pdf.py files",
-        f"generate_pdf.py {files_dir}",
-    )
     return prompt
 
 

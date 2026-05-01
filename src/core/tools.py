@@ -79,6 +79,37 @@ def glob_files(pattern: str) -> str:
         return f"Glob error: {exc}"
 
 
+def render_typst(typ_file: str) -> str:
+    """Compile a Typst (.typ) file to PDF using the typst Python package.
+
+    Installs the package automatically if missing.
+    The PDF is written alongside the .typ file with a .pdf extension.
+    """
+    try:
+        import typst as _typst
+    except ImportError:
+        result = subprocess.run(
+            [__import__("sys").executable, "-m", "pip", "install", "typst", "-q"],
+            capture_output=True, text=True,
+        )
+        if result.returncode != 0:
+            return f"Failed to install typst: {result.stderr}"
+        import typst as _typst  # noqa: PLC0415
+
+    from pathlib import Path as _Path
+    typ_path = _Path(typ_file)
+    if not typ_path.exists():
+        return f"File not found: {typ_file}"
+
+    pdf_path = str(typ_path.with_suffix(".pdf"))
+    try:
+        # root="." lets Typst resolve image paths relative to the project root.
+        _typst.compile(str(typ_path), output=pdf_path, root=".")
+        return f"PDF rendered: {pdf_path}"
+    except Exception as exc:
+        return f"Typst compile error: {exc}"
+
+
 def bash_execute(command: str, timeout: int = 120) -> str:
     """Execute a shell command and return combined stdout/stderr."""
     try:

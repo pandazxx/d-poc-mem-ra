@@ -107,6 +107,28 @@ BASH_EXECUTE = {
     },
 }
 
+RENDER_TYPST = {
+    "type": "function",
+    "function": {
+        "name": "render_typst",
+        "description": (
+            "Compile a Typst (.typ) file into a PDF. "
+            "Call this after write_file has saved the .typ report. "
+            "Returns the path of the generated PDF."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "typ_file": {
+                    "type": "string",
+                    "description": "Path to the .typ file to compile, e.g. files/reports/report.typ",
+                },
+            },
+            "required": ["typ_file"],
+        },
+    },
+}
+
 SPAWN_SUBAGENTS = {
     "type": "function",
     "function": {
@@ -153,5 +175,5 @@ TOOL_SETS: dict[str, list] = {
     "lead": [SPAWN_SUBAGENTS],
     "researcher": [SEARCH_AND_SAVE],  # combined search+save prevents placeholder writes
     "data-analyst": [GLOB_FILES, READ_FILE, BASH_EXECUTE, WRITE_FILE],
-    "report-writer": [GLOB_FILES, READ_FILE, BASH_EXECUTE],  # no write_file: PDF must come from bash_execute+reportlab
+    "report-writer": [GLOB_FILES, READ_FILE, WRITE_FILE, RENDER_TYPST],
 }
