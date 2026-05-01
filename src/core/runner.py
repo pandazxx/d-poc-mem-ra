@@ -4,8 +4,10 @@ import asyncio
 import json
 import logging
 import os
+import random
 from typing import Callable, Optional
 
+import openai
 from openai import AsyncOpenAI
 
 from .schemas import TOOL_SETS
@@ -14,7 +16,12 @@ from .tools import bash_execute, glob_files, read_file, web_search, write_file
 logger = logging.getLogger(__name__)
 
 NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1"
-DEFAULT_MODEL = "meta/llama-3.1-70b-instruct"
+
+# mistral-large-2 supports parallel (multi) tool calls; llama-3.1-70b does not.
+DEFAULT_MODEL = "mistralai/mistral-large-2-instruct"
+
+_RETRY_MAX = 6        # max retry attempts on 429
+_RETRY_BASE = 2.0     # initial backoff seconds (doubles each attempt, capped at 60s)
 
 
 class AgentRunner:
@@ -22,9 +29,9 @@ class AgentRunner:
     Runs a single agent in an agentic loop.
 
     - Calls the NVIDIA NIM LLM (OpenAI-compatible API).
-    - Handles tool calls returned by the model.
-    - Supports concurrent subagent spawning when the lead agent issues
-      multiple spawn_subagent calls in one turn.
+    - Retries with exponential backoff on 429 rate-limit responses.
+    - Executes multiple tool calls concurrently (parallel tool calls).
+    - Supports recursive subagent spawning via spawn_subagents.
     """
 
     def __init__(
@@ -58,20 +65,11 @@ class AgentRunner:
         ]
 
         while True:
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=self.messages,
-                tools=self.tools or None,
-                tool_choice="auto" if self.tools else None,
-                temperature=0.6,
-                top_p=0.95,
-                max_tokens=4096,
-            )
+            response = await self._call_llm()
 
             choice = response.choices[0]
             msg = choice.message
 
-            # Append assistant turn to history in the dict format the API expects.
             assistant_dict: dict = {"role": "assistant", "content": msg.content}
             if msg.tool_calls:
                 assistant_dict["tool_calls"] = [
@@ -90,14 +88,42 @@ class AgentRunner:
             if not msg.tool_calls:
                 return msg.content or ""
 
-            # Execute all tool calls (spawn_subagent calls run concurrently).
             tool_results = await self._execute_tool_calls(msg.tool_calls)
             self.messages.extend(tool_results)
 
+    async def _call_llm(self):
+        """Call the LLM API with exponential backoff retry on 429."""
+        delay = _RETRY_BASE
+        for attempt in range(_RETRY_MAX):
+            try:
+                return await self.client.chat.completions.create(
+                    model=self.model,
+                    messages=self.messages,
+                    tools=self.tools or None,
+                    tool_choice="auto" if self.tools else None,
+                    temperature=0.6,
+                    top_p=0.95,
+                    max_tokens=4096,
+                )
+            except openai.RateLimitError:
+                if attempt == _RETRY_MAX - 1:
+                    raise
+                # Add jitter to spread retries from concurrent subagents.
+                wait = delay + random.uniform(0, delay * 0.5)
+                logger.warning(
+                    "[%s] 429 rate-limited (attempt %d/%d) — retrying in %.1fs",
+                    self.agent_type, attempt + 1, _RETRY_MAX, wait,
+                )
+                print(
+                    f"\n[{self.agent_type}] Rate limited, retrying in {wait:.0f}s…",
+                    flush=True,
+                )
+                await asyncio.sleep(wait)
+                delay = min(delay * 2, 60)
+
     async def _execute_tool_calls(self, tool_calls: list) -> list[dict]:
         """Execute all tool calls concurrently and return tool result messages."""
-        tasks = [self._execute_one(tc) for tc in tool_calls]
-        return list(await asyncio.gather(*tasks))
+        return list(await asyncio.gather(*[self._execute_one(tc) for tc in tool_calls]))
 
     async def _execute_one(self, tool_call) -> dict:
         name = tool_call.function.name
@@ -142,10 +168,8 @@ class AgentRunner:
     async def _spawn(self, subagent_type: str, description: str, prompt: str) -> str:
         if not self.agent_factory:
             return "Cannot spawn subagent: no factory configured"
-
         if self.on_spawn:
             self.on_spawn(subagent_type, description)
-
         runner: AgentRunner = self.agent_factory(subagent_type)
         result = await runner.run(prompt)
         return f"[{subagent_type} completed]\n{result}"
