@@ -129,7 +129,7 @@ class AgentRunner:
                     flush=True,
                 )
                 await asyncio.sleep(wait)
-                delay = min(delay * 2, 60)
+                delay = min(delay * 2, 300)
 
     async def _execute_tool_calls(self, tool_calls: list) -> list[dict]:
         """Execute all tool calls concurrently and return tool result messages."""
