@@ -17,38 +17,40 @@ Enable rapid, AI-driven research workflows where a lead agent decomposes complex
 
 ## Bootstrap demo
 
+### With uv (recommended)
+
 ```bash
 # Clone the repo
 git clone <repo_url> && cd d-poc-mem-ra
 
-# Create virtual environment
-python3.10 -m venv venv
-source venv/bin/activate
-
-# Install dependencies
-pip install -e .
+# Install dependencies and create a managed venv in one step
+uv sync
 
 # Set up environment
 cp .env.example .env
 # Edit .env and add your NVIDIA_API_KEY (get it at https://build.nvidia.com)
 
 # Run the agent
-python -m src.main
+uv run python -m src.main
 
 # Enter a research topic when prompted:
 # > Research the history of artificial intelligence
 # (Control+C or type 'exit' to quit)
-
-# Session outputs appear in logs/ with subdirectories:
-# logs/session_YYYYMMDD_HHMMSS/
-#   ├── transcript.txt              # Full conversation log
-#   ├── tool_calls.jsonl            # Structured tool-call log
-#   └── files/
-#       ├── research_notes/         # Markdown notes from researcher agents
-#       ├── charts/                 # PNG charts from data-analyst
-#       ├── data/                   # Data summary JSON/Markdown
-#       └── reports/                # Final PDF report
 ```
+
+### With pip (alternative)
+
+```bash
+git clone <repo_url> && cd d-poc-mem-ra
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e .
+cp .env.example .env   # add NVIDIA_API_KEY
+python -m src.main
+# > Research the history of artificial intelligence
+# (Control+C or type 'exit' to quit)
+```
+
+Session outputs land in `logs/session_YYYYMMDD_HHMMSS/` — transcript, structured tool-call log, research notes, charts, and the final PDF. See [Output structure](#output-structure) below.
 
 ## Project structure
 
