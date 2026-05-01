@@ -21,3 +21,4 @@ include = ["src*"]
 
 [project.scripts]
 research-agent = "src.main:main"
+list-models = "src.list_models:main"

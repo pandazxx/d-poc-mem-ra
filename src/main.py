@@ -5,7 +5,7 @@ import os
 
 from dotenv import load_dotenv
 
-from .core.runner import AgentRunner, DEFAULT_MODEL
+from .core.runner import AgentRunner, DEFAULT_MODEL, NVIDIA_BASE_URL
 from .core.subagent_factory import load_prompt, make_agent_factory
 from .utils.tracker import SubagentTracker
 from .utils.transcript import TranscriptWriter, setup_session
@@ -49,7 +49,10 @@ async def _chat() -> None:
     print("\n" + "=" * 50)
     print("  NVIDIA NIM Research Agent")
     print("=" * 50)
-    print(f"\nModel: {DEFAULT_MODEL}")
+    print(f"\nModel : {DEFAULT_MODEL}")
+    print(f"API   : {NVIDIA_BASE_URL}")
+    print("\nTo change the model set NVIDIA_MODEL=<id> in .env")
+    print("To list available models: uv run python -m src.list_models")
     print("\nResearch any topic and get a comprehensive PDF")
     print("report with data visualizations.")
     print("\nType 'exit' to quit.\n")

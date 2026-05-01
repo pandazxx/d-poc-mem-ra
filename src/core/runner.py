@@ -17,8 +17,12 @@ logger = logging.getLogger(__name__)
 
 NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1"
 
-# mistral-large-2 supports parallel (multi) tool calls; llama-3.1-70b does not.
-DEFAULT_MODEL = "mistralai/mistral-large-2-instruct"
+# Fallback model known to support parallel (multi) tool calls.
+# Override at runtime with the NVIDIA_MODEL environment variable.
+DEFAULT_MODEL = os.environ.get(
+    "NVIDIA_MODEL",
+    "meta/llama-3.3-70b-instruct",
+)
 
 _RETRY_MAX = 6        # max retry attempts on 429
 _RETRY_BASE = 2.0     # initial backoff seconds (doubles each attempt, capped at 60s)
@@ -105,6 +109,12 @@ class AgentRunner:
                     top_p=0.95,
                     max_tokens=4096,
                 )
+            except openai.NotFoundError:
+                raise RuntimeError(
+                    f"Model '{self.model}' not found on your NVIDIA NIM account.\n"
+                    "Run  uv run python -m src.list_models  to see available models,\n"
+                    "then set  NVIDIA_MODEL=<id>  in your .env file."
+                ) from None
             except openai.RateLimitError:
                 if attempt == _RETRY_MAX - 1:
                     raise
