@@ -84,3 +84,7 @@ async def _chat() -> None:
         print(f"\nSession logs: {session_dir}")
         print(f"  transcript : {transcript_file}")
         print(f"  tool calls : {session_dir / 'tool_calls.jsonl'}")
+
+
+if __name__ == "__main__":
+    main()
