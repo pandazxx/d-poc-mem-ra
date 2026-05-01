@@ -7,7 +7,7 @@ import textwrap
 from dotenv import load_dotenv
 
 from .core.runner import AgentRunner, DEFAULT_MODEL, NVIDIA_BASE_URL
-from .core.subagent_factory import load_prompt, make_agent_factory
+from .core.subagent_factory import _inject_files_dir, load_prompt, make_agent_factory
 from .utils.tracker import SubagentTracker
 from .utils.transcript import TranscriptWriter, setup_session
 
@@ -54,6 +54,9 @@ async def _chat() -> None:
         return
 
     transcript_file, session_dir = setup_session()
+    # Each session writes its files into its own subdirectory so sessions never
+    # contaminate each other.
+    session_files_dir = str(session_dir / "files")
     transcript = TranscriptWriter(transcript_file)
     tracker = SubagentTracker(transcript_writer=transcript, session_dir=session_dir)
 
@@ -96,13 +99,15 @@ async def _chat() -> None:
     # ── agent setup ────────────────────────────────────────────────────────────
 
     factory = make_agent_factory(
+        files_dir=session_files_dir,
         on_spawn=on_spawn,
         on_tool_call=on_tool_call,
         on_tool_result=on_tool_result,
         on_agent_text=on_agent_text,
     )
+    lead_system_prompt = _inject_files_dir(load_prompt("lead_agent.txt"), session_files_dir)
     lead_runner = AgentRunner(
-        system_prompt=load_prompt("lead_agent.txt"),
+        system_prompt=lead_system_prompt,
         agent_type="lead",
         model=DEFAULT_MODEL,
         agent_factory=factory,
@@ -154,6 +159,7 @@ async def _chat() -> None:
         print(f"\nSession logs: {session_dir}")
         print(f"  transcript : {transcript_file}")
         print(f"  tool calls : {session_dir / 'tool_calls.jsonl'}")
+        print(f"  files      : {session_files_dir}/")
 
 
 if __name__ == "__main__":

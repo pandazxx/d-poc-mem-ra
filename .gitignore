@@ -7,6 +7,5 @@ build/
 .venv/
 venv/
 logs/
-files/
 *.pdf
 *.png
