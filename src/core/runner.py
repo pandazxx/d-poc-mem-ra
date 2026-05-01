@@ -11,7 +11,7 @@ import openai
 from openai import AsyncOpenAI
 
 from .schemas import TOOL_SETS
-from .tools import bash_execute, glob_files, read_file, web_search, write_file
+from .tools import bash_execute, glob_files, read_file, search_and_save, web_search, write_file
 
 logger = logging.getLogger(__name__)
 
@@ -152,6 +152,10 @@ class AgentRunner:
         }
 
     async def _dispatch(self, name: str, args: dict) -> str:
+        if name == "search_and_save":
+            return await asyncio.to_thread(
+                search_and_save, args["query"], args["file_path"]
+            )
         if name == "web_search":
             return await asyncio.to_thread(
                 web_search, args["query"], args.get("max_results", 10)

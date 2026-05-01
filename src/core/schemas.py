@@ -1,5 +1,28 @@
 """OpenAI-compatible tool schemas for each agent type."""
 
+SEARCH_AND_SAVE = {
+    "type": "function",
+    "function": {
+        "name": "search_and_save",
+        "description": (
+            "Search the web for a query and append the raw results directly to a file. "
+            "Use this instead of calling web_search + write_file separately. "
+            "The file receives verbatim search-result snippets and URLs — no invented text."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "The search query"},
+                "file_path": {
+                    "type": "string",
+                    "description": "Path to append results to, e.g. files/research_notes/topic.md",
+                },
+            },
+            "required": ["query", "file_path"],
+        },
+    },
+}
+
 WEB_SEARCH = {
     "type": "function",
     "function": {
@@ -128,7 +151,7 @@ SPAWN_SUBAGENTS = {
 # Tool sets per agent type
 TOOL_SETS: dict[str, list] = {
     "lead": [SPAWN_SUBAGENTS],
-    "researcher": [WEB_SEARCH, WRITE_FILE],
+    "researcher": [SEARCH_AND_SAVE],  # combined search+save prevents placeholder writes
     "data-analyst": [GLOB_FILES, READ_FILE, BASH_EXECUTE, WRITE_FILE],
     "report-writer": [GLOB_FILES, READ_FILE, BASH_EXECUTE, WRITE_FILE],
 }

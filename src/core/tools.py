@@ -26,6 +26,27 @@ def web_search(query: str, max_results: int = 10) -> str:
         return f"Search error: {exc}"
 
 
+def search_and_save(query: str, file_path: str) -> str:
+    """Search the web and append the raw results directly to a file.
+
+    This is the ONLY correct way for the researcher to record search findings.
+    The file receives verbatim search-result snippets and URLs — never invented text.
+    """
+    results_text = web_search(query, max_results=10)
+    entry = f"\n\n## Search: {query}\n\n{results_text}"
+
+    path = Path(file_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    if path.exists():
+        path.write_text(path.read_text(encoding="utf-8") + entry, encoding="utf-8")
+    else:
+        path.write_text(f"# Research Notes\n{entry}", encoding="utf-8")
+
+    lines_saved = entry.count("\n")
+    return f"Appended {len(results_text)} chars ({lines_saved} lines) to {file_path}"
+
+
 def write_file(file_path: str, content: str) -> str:
     """Write content to a file, creating parent directories as needed."""
     try:
