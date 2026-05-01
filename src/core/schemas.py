@@ -84,40 +84,50 @@ BASH_EXECUTE = {
     },
 }
 
-SPAWN_SUBAGENT = {
+SPAWN_SUBAGENTS = {
     "type": "function",
     "function": {
-        "name": "spawn_subagent",
+        "name": "spawn_subagents",
         "description": (
-            "Delegate a task to a specialized subagent. "
-            "Available types: researcher, data-analyst, report-writer. "
-            "Multiple calls are executed concurrently."
+            "Spawn one or more specialized subagents. All items in the list run concurrently. "
+            "Use a single call with multiple items to parallelize researchers. "
+            "Available types: researcher, data-analyst, report-writer."
         ),
         "parameters": {
             "type": "object",
             "properties": {
-                "subagent_type": {
-                    "type": "string",
-                    "enum": ["researcher", "data-analyst", "report-writer"],
-                    "description": "Type of subagent to spawn",
-                },
-                "description": {
-                    "type": "string",
-                    "description": "Brief 3-5 word description of the task",
-                },
-                "prompt": {
-                    "type": "string",
-                    "description": "Detailed instructions for the subagent",
+                "subagents": {
+                    "type": "array",
+                    "description": "List of subagents to spawn (all run in parallel).",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "subagent_type": {
+                                "type": "string",
+                                "enum": ["researcher", "data-analyst", "report-writer"],
+                                "description": "Type of subagent",
+                            },
+                            "description": {
+                                "type": "string",
+                                "description": "Brief 3-5 word description of the task",
+                            },
+                            "prompt": {
+                                "type": "string",
+                                "description": "Detailed instructions for the subagent",
+                            },
+                        },
+                        "required": ["subagent_type", "description", "prompt"],
+                    },
                 },
             },
-            "required": ["subagent_type", "description", "prompt"],
+            "required": ["subagents"],
         },
     },
 }
 
 # Tool sets per agent type
 TOOL_SETS: dict[str, list] = {
-    "lead": [SPAWN_SUBAGENT],
+    "lead": [SPAWN_SUBAGENTS],
     "researcher": [WEB_SEARCH, WRITE_FILE],
     "data-analyst": [GLOB_FILES, READ_FILE, BASH_EXECUTE, WRITE_FILE],
     "report-writer": [GLOB_FILES, READ_FILE, BASH_EXECUTE, WRITE_FILE],

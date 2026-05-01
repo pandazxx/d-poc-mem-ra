@@ -131,10 +131,12 @@ class AgentRunner:
             return await asyncio.to_thread(glob_files, args["pattern"])
         if name == "bash_execute":
             return await asyncio.to_thread(bash_execute, args["command"])
-        if name == "spawn_subagent":
-            return await self._spawn(
-                args["subagent_type"], args["description"], args["prompt"]
+        if name == "spawn_subagents":
+            specs = args.get("subagents", [])
+            results = await asyncio.gather(
+                *[self._spawn(s["subagent_type"], s["description"], s["prompt"]) for s in specs]
             )
+            return "\n\n".join(results)
         return f"Unknown tool: {name}"
 
     async def _spawn(self, subagent_type: str, description: str, prompt: str) -> str:
