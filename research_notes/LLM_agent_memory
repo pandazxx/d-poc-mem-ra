@@ -1,0 +1,23 @@
+# LLM Agent Memory Research Notes
+## Key Statistics
+- 75% API cost reduction (Source: DEV Community)
+- 84.8% SWE-Bench (Source: DEV Community)
+- $0.0475 optimal strategies for preventing future stroke in patients with acute (Source: ahajournals.org)
+## Market Data
+- Market size: $384 billion (Year: 2024)
+- Growth rate: 25.3% year-over-year growth
+- Projected value: $1.2 trillion by 2030
+## Rankings & Comparisons
+| Entity | Metric | Value |
+|--------|--------|-------|
+| LLM Agent | API cost reduction | 75% |
+| LLM Agent | SWE-Bench | 84.8% |
+| LLM Agent | Optimal strategies for preventing future stroke in patients with acute | $0.0475 |
+## Trends & Projections
+- Memory injection attacks on LLM agents via query-only interaction (Source: arxiv.org)
+- Agent memory is not a greenfield problem: ground it in your existing data (Source: Medium)
+- Causality graphs for AI agent memory: enabling coherent reasoning across time (Source: ai.plainenglish.io)
+## Sources
+- [1] Memory for Autonomous LLM Agents: Mechanisms, Evaluation, and Future Directions (Source: arxiv.org)
+- [2] From Storage to Experience: A Survey on the Evolution of LLM Agent Memory Mechanisms (Source: Preprints.org)
+- [3] A Survey on the Memory Mechanism of Large Language Model based Agents (Source: arxiv.org)
